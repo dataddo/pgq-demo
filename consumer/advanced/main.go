@@ -1,0 +1,98 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"flag"
+	"go.dataddo.com/pgq"
+	"go.opentelemetry.io/otel/metric/noop"
+	"log/slog"
+	"os"
+	"time"
+
+	_ "github.com/jackc/pgx/v4/stdlib"
+)
+
+func main() {
+	ctx := context.Background()
+
+	postgresDNS := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
+	queueName := flag.String("queue", "demo_queue", "The name of the queue to consume")
+	flag.Parse()
+
+	db, err := sql.Open("pgx", *postgresDNS)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	defer db.Close()
+
+	consumer, err := newConsumer(db, *queueName)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	err = consumer.Run(ctx)
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
+type handler struct {
+	worker Worker
+}
+
+func (h *handler) HandleMessage(_ context.Context, msg pgq.Message) (processed bool, err error) {
+	var job Job
+	err = json.Unmarshal(msg.Payload(), &job)
+	if err != nil {
+		return pgq.MessageNotProcessed, err
+	}
+
+	err = h.worker.Do(job)
+	if err != nil {
+		return pgq.MessageNotProcessed, err
+	}
+
+	return pgq.MessageProcessed, nil
+}
+
+func newConsumer(db *sql.DB, queueName string) (*pgq.Consumer, error) {
+	slogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	h := handler{worker: Worker{}}
+
+	return pgq.NewConsumer(db, queueName, &h,
+		pgq.WithLogger(slogger),
+		pgq.WithLockDuration(10*time.Minute),
+		pgq.WithPollingInterval(500*time.Millisecond),
+		pgq.WithAckTimeout(5*time.Second),
+		pgq.WithMaxParallelMessages(5),
+		pgq.WithMetrics(noop.Meter{}),
+		pgq.WithHistoryLimit(24*time.Hour),
+		pgq.WithInvalidMessageCallback(func(ctx context.Context, msg pgq.InvalidMessage, err error) {
+			// message payload and/or metadata are not JSON object.
+			// The message will be discarded.
+			slogger.Warn("invalid message",
+				"error", err,
+				"msg.Id", msg.ID,
+			)
+		}),
+	)
+}
+
+type Job struct {
+	Id    string `json:"id"`
+	Sleep int    `json:"sleep"`
+}
+
+type Worker struct {
+}
+
+func (w *Worker) Do(job Job) error {
+	slog.Info("Sleeper started to work on the job.", "job", job)
+	time.Sleep(time.Duration(job.Sleep) * time.Second)
+	slog.Info("Sleeper finished the job.", "job", job)
+
+	return nil
+}
