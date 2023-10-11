@@ -15,7 +15,7 @@ setup:
 publish:
 	cd publisher && \
 	go build . && \
-	./publisher -dsn $(POSTGRES_DSN) -count 5 -maxWeight 10 -queue $(QUEUE_NAME)
+	./publisher -dsn $(POSTGRES_DSN) -count 500 -maxWeight 10 -queue $(QUEUE_NAME)
 
 consume-simple:
 	cd consumer/simple/ && \

@@ -1,4 +1,5 @@
-consumer/consumer
+consumer/advanced/consumer
+consumer/basic/consumer
 publisher/publisher
 setup/setup
 monitor/monitor
