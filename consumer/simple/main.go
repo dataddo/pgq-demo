@@ -25,7 +25,8 @@ func main() {
 	}
 	defer db.Close()
 
-	consumer, err := newConsumer(db, *queueName)
+	h := handler{worker: Worker{}}
+	consumer, err := pgq.NewConsumer(db, *queueName, &h)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -53,12 +54,6 @@ func (h *handler) HandleMessage(_ context.Context, msg pgq.Message) (processed b
 	}
 
 	return pgq.MessageProcessed, nil
-}
-
-func newConsumer(db *sql.DB, queueName string) (*pgq.Consumer, error) {
-	h := handler{worker: Worker{}}
-
-	return pgq.NewConsumer(db, queueName, &h)
 }
 
 type Job struct {
