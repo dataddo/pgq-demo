@@ -26,7 +26,7 @@ func main() {
 	defer db.Close()
 
 	h := handler{worker: Worker{}}
-	consumer, err := pgq.NewConsumer(db, *queueName, &h)
+	consumer, err := pgq.NewConsumer(db, *queueName, &h, pgq.WithLockDuration(3*time.Minute))
 	if err != nil {
 		panic(err.Error())
 	}

@@ -37,7 +37,7 @@ func main() {
 	writer := csv.NewWriter(file)
 
 	waitingQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE (locked_until IS NULL OR locked_until < CURRENT_TIMESTAMP) AND processed_at IS NULL AND consumed_count < 3", *queueName)
-	processingQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE locked_until > CURRENT_TIMESTAMP", *queueName)
+	processingQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE locked_until is not null AND processed_at is null", *queueName)
 
 	ticker := time.NewTicker(2 * time.Second)
 	done := make(chan bool)
