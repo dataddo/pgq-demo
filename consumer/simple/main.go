@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"go.dataddo.com/pgq"
 	"log/slog"
 	"time"
@@ -26,7 +28,7 @@ func main() {
 	defer db.Close()
 
 	h := handler{worker: Worker{}}
-	consumer, err := pgq.NewConsumer(db, *queueName, &h, pgq.WithLockDuration(3*time.Minute))
+	consumer, err := pgq.NewConsumer(db, *queueName, &h, pgq.WithLockDuration(1*time.Minute))
 	if err != nil {
 		panic(err.Error())
 	}
@@ -67,7 +69,12 @@ type Worker struct {
 func (w *Worker) Do(job Job) error {
 	slog.Info("Sleeper started to work on the job.", "job", job)
 	time.Sleep(time.Duration(job.Sleep) * time.Second)
-	slog.Info("Sleeper finished the job.", "job", job)
 
+	if job.Sleep == 0 {
+		slog.Error("Sleeper failed to process the job.", "job", job)
+		return errors.New(fmt.Sprintf("Gophers need to sleep!. Sleeping for '%d' is unacceptable for them.", job.Sleep))
+	}
+
+	slog.Info("Sleeper finished the job.", "job", job)
 	return nil
 }

@@ -6,9 +6,13 @@ import (
 	"flag"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"go.dataddo.com/pgq/x/schema"
+	"log/slog"
+	"os"
 )
 
 func main() {
+	slogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
 	postgresDSN := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
 	queueName := flag.String("queue", "demo_queue", "The name of the queue to setup")
 	flag.Parse()
@@ -34,4 +38,6 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	slogger.Info("Queue setup completed", "queue", *queueName)
 }
