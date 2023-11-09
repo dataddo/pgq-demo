@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"go.dataddo.com/pgq"
-	"go.opentelemetry.io/otel/metric/noop"
 	"log/slog"
 	"os"
 	"time"
@@ -64,20 +63,10 @@ func newConsumer(db *sql.DB, queueName string) (*pgq.Consumer, error) {
 
 	return pgq.NewConsumer(db, queueName, &h,
 		pgq.WithLogger(slogger),
-		pgq.WithLockDuration(10*time.Minute),
-		pgq.WithPollingInterval(500*time.Millisecond),
-		pgq.WithAckTimeout(5*time.Second),
 		pgq.WithMaxParallelMessages(5),
-		pgq.WithMetrics(noop.Meter{}),
-		pgq.WithHistoryLimit(24*time.Hour),
-		pgq.WithInvalidMessageCallback(func(ctx context.Context, msg pgq.InvalidMessage, err error) {
-			// message payload and/or metadata are not JSON object.
-			// The message will be discarded.
-			slogger.Warn("invalid message",
-				"error", err,
-				"msg.Id", msg.ID,
-			)
-		}),
+		pgq.WithLockDuration(2*time.Minute),
+		pgq.WithPollingInterval(500*time.Millisecond),
+		// add other options here if you wish, please see the docs https://github.com/dataddo/pgq#consumer-options
 	)
 }
 
