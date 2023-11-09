@@ -12,18 +12,18 @@ import (
 )
 
 func main() {
-	postgresDNS := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
+	postgresDSN := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
 	queueName := flag.String("queue", "demo_queue", "The name of the queue to monitor")
 	fileName := flag.String("file", "monitoring.csv", "The name of the file where to put the monitoring metrics")
 	flag.Parse()
 
 	slogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if *postgresDNS == "" {
+	if *postgresDSN == "" {
 		panic("No postgres DNS provided")
 	}
 
-	db, err := sql.Open("pgx", *postgresDNS)
+	db, err := sql.Open("pgx", *postgresDSN)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -38,6 +38,7 @@ func main() {
 
 	waitingQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE (locked_until IS NULL OR locked_until < CURRENT_TIMESTAMP) AND processed_at IS NULL AND consumed_count < 3", *queueName)
 	processingQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE locked_until is not null AND processed_at is null", *queueName)
+	errorsQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE error_detail is not null AND processed_at is not null", *queueName)
 
 	ticker := time.NewTicker(2 * time.Second)
 	done := make(chan bool)
@@ -50,9 +51,10 @@ func main() {
 			case t := <-ticker.C:
 				waiting := getCount(db, waitingQuery)
 				processing := getCount(db, processingQuery)
+				erroneous := getCount(db, errorsQuery)
 
-				outputLine(writer, waiting, processing, t)
-				slogger.Info("Monitoring", "waiting", waiting, "processing", processing)
+				outputLine(writer, waiting, processing, erroneous, t)
+				slogger.Info("Monitoring", "waiting", waiting, "processing", processing, "erroneous", erroneous)
 			}
 		}
 	}()
@@ -80,11 +82,12 @@ func getCount(db *sql.DB, query string) int {
 	return count
 }
 
-func outputLine(writer *csv.Writer, waiting int, processing int, t time.Time) {
+func outputLine(writer *csv.Writer, waiting int, processing int, erroneous int, t time.Time) {
 	line := []string{
 		t.Format(time.RFC3339),
 		fmt.Sprintf("%d", waiting),
 		fmt.Sprintf("%d", processing),
+		fmt.Sprintf("%d", erroneous),
 	}
 	err := writer.Write(line)
 	if err != nil {

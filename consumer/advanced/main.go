@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"go.dataddo.com/pgq"
 	"log/slog"
 	"os"
@@ -16,11 +18,11 @@ import (
 func main() {
 	ctx := context.Background()
 
-	postgresDNS := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
+	postgresDSN := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
 	queueName := flag.String("queue", "demo_queue", "The name of the queue to consume")
 	flag.Parse()
 
-	db, err := sql.Open("pgx", *postgresDNS)
+	db, err := sql.Open("pgx", *postgresDSN)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -51,7 +53,7 @@ func (h *handler) HandleMessage(_ context.Context, msg pgq.Message) (processed b
 
 	err = h.worker.Do(job)
 	if err != nil {
-		return pgq.MessageNotProcessed, err
+		return pgq.MessageProcessed, err
 	}
 
 	return pgq.MessageProcessed, nil
@@ -81,7 +83,12 @@ type Worker struct {
 func (w *Worker) Do(job Job) error {
 	slog.Info("Sleeper started to work on the job.", "job", job)
 	time.Sleep(time.Duration(job.Sleep) * time.Second)
-	slog.Info("Sleeper finished the job.", "job", job)
 
+	if job.Sleep == 0 {
+		slog.Error("Sleeper failed to process the job.", "job", job)
+		return errors.New(fmt.Sprintf("Gophers need to sleep!. Sleeping for '%d' is unacceptable for them.", job.Sleep))
+	}
+
+	slog.Info("Sleeper finished the job.", "job", job)
 	return nil
 }

@@ -15,11 +15,11 @@ import (
 func main() {
 	ctx := context.Background()
 
-	postgresDNS := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
+	postgresDSN := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
 	queueName := flag.String("queue", "demo_queue", "The name of the queue to consume")
 	flag.Parse()
 
-	db, err := sql.Open("pgx", *postgresDNS)
+	db, err := sql.Open("pgx", *postgresDSN)
 	if err != nil {
 		panic(err.Error())
 	}

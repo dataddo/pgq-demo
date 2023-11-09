@@ -18,17 +18,17 @@ import (
 func main() {
 	slogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	postgresDNS := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
+	postgresDSN := flag.String("dsn", "", "Postgres DSN to connect to. Should be in format postgresql://user:pass@host:5432/db")
 	queueName := flag.String("queue", "demo_queue", "The name of the queue to publish messages to")
 	messageCount := flag.Int("count", 1, "The number of messages to publish. The weight of each message will be random")
 	maxWeight := flag.Int("maxWeight", 10, "The max job weight which indicates how long the message will take the consumer to process in seconds")
 	flag.Parse()
 
-	if *postgresDNS == "" {
+	if *postgresDSN == "" {
 		panic("No postgres DNS provided")
 	}
 
-	db, err := sql.Open("pgx", *postgresDNS)
+	db, err := sql.Open("pgx", *postgresDSN)
 	if err != nil {
 		panic(err.Error())
 	}
