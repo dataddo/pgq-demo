@@ -9,6 +9,9 @@ QUEUE_NAME := "demo_queue"
 postgres: ## Starts the postgres 16 instance in docker container on port 5432
 	docker run --name pgq-postgres -e POSTGRES_USER=pgq -e POSTGRES_PASSWORD=pgq -p 5432:5432 -d postgres:16.0
 
+adminer: ## Starts the adminer db inspector tool
+	docker run -p 8888:8080 -e ADMINER_DEFAULT_SERVER=host.docker.internal -d adminer
+
 setup: ## Creates the queue table in the database
 	cd setup && \
 	go get && \
