@@ -26,10 +26,16 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-
 	defer db.Close()
 
-	consumer, err := newConsumer(db, *queueName)
+	h := handler{worker: Worker{}}
+	consumer, err := pgq.NewConsumer(db, *queueName, &h,
+		pgq.WithLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))),
+		pgq.WithMaxParallelMessages(5),
+		pgq.WithLockDuration(1*time.Minute),
+		pgq.WithPollingInterval(500*time.Millisecond),
+		// add other options here if you wish, please see the docs https://github.com/dataddo/pgq#consumer-options
+	)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -57,19 +63,6 @@ func (h *handler) HandleMessage(_ context.Context, msg pgq.Message) (processed b
 	}
 
 	return pgq.MessageProcessed, nil
-}
-
-func newConsumer(db *sql.DB, queueName string) (*pgq.Consumer, error) {
-	slogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	h := handler{worker: Worker{}}
-
-	return pgq.NewConsumer(db, queueName, &h,
-		pgq.WithLogger(slogger),
-		pgq.WithMaxParallelMessages(5),
-		pgq.WithLockDuration(2*time.Minute),
-		pgq.WithPollingInterval(500*time.Millisecond),
-		// add other options here if you wish, please see the docs https://github.com/dataddo/pgq#consumer-options
-	)
 }
 
 type Job struct {
