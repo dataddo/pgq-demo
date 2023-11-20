@@ -69,6 +69,28 @@ Hint: as the output file is a csv file, you may create a nice chart from it in g
 $ make monitor
 ```
 
+Here is the short list of of potentially helpful queries:
+```sql
+-- add the new message to the queue
+insert into demo_queue (payload, metadata) values ('{"foo": "bar"}', '{}');
+
+-- list all unprocessed messages
+select * from demo_queue where processed_at is null;
+
+-- list of currently bering processed messages
+select * from demo_queue where locked_until is not null;
+
+-- list all ended with error
+select * from demo_queue where processed_at is not null and error_detail!='';
+
+-- compute the average processing time
+select avg((processed_at-started_at)) as avg_duration from demo_queue where processed_at is not null;
+
+-- list all with sleep 9
+select * from demo_queue where payload->'sleep' = '9';
+
+```
+
 ## Summary
 
 All in one you may run the following commands to see the demo full demo in action:
