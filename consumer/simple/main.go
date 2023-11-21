@@ -47,7 +47,7 @@ func (h *handler) HandleMessage(_ context.Context, msg pgq.Message) (processed b
 	var job Job
 	err = json.Unmarshal(msg.Payload(), &job)
 	if err != nil {
-		return pgq.MessageNotProcessed, err
+		return pgq.MessageProcessed, err
 	}
 
 	err = h.worker.Do(job)
